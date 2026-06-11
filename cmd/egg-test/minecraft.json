@@ -1,0 +1,63 @@
+{
+  "name": "Minecraft Java",
+  "description": "Serveur Minecraft vanilla / Paper / Spigot",
+  "author": "Photon",
+  "docker_images": {
+    "ghcr.io/photon/games:minecraft-java": "Minecraft Java 21",
+    "ghcr.io/photon/games:minecraft-java-legacy": "Minecraft Java 17"
+  },
+  "startup": "java -Xms{{SERVER_MEMORY}}M -Xmx{{SERVER_MEMORY}}M -jar {{SERVER_JARFILE}}",
+  "environment": [
+    {
+      "name": "Server JAR File",
+      "description": "Nom du fichier JAR du serveur",
+      "env_variable": "SERVER_JARFILE",
+      "default_value": "server.jar",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string|max:50"
+    },
+    {
+      "name": "Server Memory",
+      "description": "Quantité de mémoire allouée (en MB)",
+      "env_variable": "SERVER_MEMORY",
+      "default_value": "1024",
+      "user_viewable": false,
+      "user_editable": true,
+      "rules": "required|integer|min:256|max:65535"
+    }
+  ],
+  "scripts": {
+    "installation": {
+      "script": "apt-get update && apt-get install -y curl && curl -o /mnt/server/server.jar https://api.papermc.io/v2/projects/paper/versions/1.21/builds/latest/downloads/paper-1.21-latest.jar",
+      "container_image": "debian:bookworm-slim",
+      "entrypoint": "/bin/bash"
+    }
+  },
+  "config_files": [
+    {
+      "file": "server.properties",
+      "parser": "properties",
+      "replace": [
+        {
+          "match": "server-port",
+          "replace_with": "{{SERVER_PORT}}"
+        },
+        {
+          "match": "server-ip",
+          "replace_with": "{{SERVER_IP}}"
+        }
+      ]
+    }
+  ],
+  "feature_limits": {
+    "memory": 2048,
+    "cpu": 100,
+    "disk": 10240
+  },
+  "file_denylist": [
+    "*.exe",
+    "*.bat",
+    "*.cmd"
+  ]
+}

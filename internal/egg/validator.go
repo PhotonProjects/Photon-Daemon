@@ -69,26 +69,38 @@ func (r RuleBoolean) Validate(value string) error {
 }
 
 type RuleMax struct {
-	Max int
+	Max int64
 }
 
 func (r RuleMax) Name() string { return "max" }
 
 func (r RuleMax) Validate(value string) error {
-	if len(value) > r.Max {
+	if f, err := strconv.ParseFloat(value, 64); err == nil {
+		if int64(f) > r.Max {
+			return fmt.Errorf("must not exceed %d", r.Max)
+		}
+		return nil
+	}
+	if len(value) > int(r.Max) {
 		return fmt.Errorf("must not exceed %d characters", r.Max)
 	}
 	return nil
 }
 
 type RuleMin struct {
-	Min int
+	Min int64
 }
 
 func (r RuleMin) Name() string { return "min" }
 
 func (r RuleMin) Validate(value string) error {
-	if len(value) < r.Min {
+	if f, err := strconv.ParseFloat(value, 64); err == nil {
+		if int64(f) < r.Min {
+			return fmt.Errorf("must be at least %d", r.Min)
+		}
+		return nil
+	}
+	if len(value) < int(r.Min) {
 		return fmt.Errorf("must be at least %d characters", r.Min)
 	}
 	return nil
@@ -156,7 +168,7 @@ func buildRule(name, arg string) (Rule, error) {
 		if arg == "" {
 			return nil, fmt.Errorf("max rule requires an argument")
 		}
-		n, err := strconv.Atoi(arg)
+		n, err := strconv.ParseInt(arg, 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("max rule argument must be a number")
 		}
@@ -165,7 +177,7 @@ func buildRule(name, arg string) (Rule, error) {
 		if arg == "" {
 			return nil, fmt.Errorf("min rule requires an argument")
 		}
-		n, err := strconv.Atoi(arg)
+		n, err := strconv.ParseInt(arg, 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("min rule argument must be a number")
 		}

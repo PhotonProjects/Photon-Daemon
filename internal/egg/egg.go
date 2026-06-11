@@ -1,5 +1,7 @@
 package egg
 
+import "encoding/json"
+
 // Egg représente un egg au format Pterodactyl natif.
 type Egg struct {
 	ID          string            `json:"-"`
@@ -77,6 +79,29 @@ func (rv ReplaceValue) Type() ValueType { return rv.valueType }
 
 func (rv ReplaceValue) String() string { return string(rv.value) }
 
+// UnmarshalJSON accepte une string simple ou un objet { "value": "...", "type": "..." }.
+func (rv *ReplaceValue) UnmarshalJSON(data []byte) error {
+	// Essayer de parser comme string simple
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		rv.value = []byte(s)
+		rv.valueType = ValueString
+		return nil
+	}
+
+	// Essayer de parser comme objet
+	var obj struct {
+		Value string    `json:"value"`
+		Type  ValueType `json:"type"`
+	}
+	if err := json.Unmarshal(data, &obj); err != nil {
+		return err
+	}
+	rv.value = []byte(obj.Value)
+	rv.valueType = obj.Type
+	return nil
+}
+
 // ValueType représente le type JSON d'une valeur.
 type ValueType int
 
@@ -86,6 +111,42 @@ const (
 	ValueBoolean
 	ValueNull
 )
+
+func (vt ValueType) String() string {
+	switch vt {
+	case ValueString:
+		return "string"
+	case ValueNumber:
+		return "number"
+	case ValueBoolean:
+		return "boolean"
+	case ValueNull:
+		return "null"
+	default:
+		return "unknown"
+	}
+}
+
+// UnmarshalJSON pour ValueType supporte les formats string "string"/"number" et legacy.
+func (vt *ValueType) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	switch s {
+	case "string":
+		*vt = ValueString
+	case "number":
+		*vt = ValueNumber
+	case "boolean":
+		*vt = ValueBoolean
+	case "null":
+		*vt = ValueNull
+	default:
+		*vt = ValueString
+	}
+	return nil
+}
 
 // FeatureLimits définit les limites par défaut de l'egg.
 type FeatureLimits struct {
@@ -108,6 +169,15 @@ type ResolvedEgg struct {
 	Env             map[string]string
 	ResolvedConfigs []ResolvedConfigFile
 	InstallScript   InstallationScript
+}
+
+// EnvAsSlice retourne les variables d'env au format ["KEY=val", ...] pour Docker.
+func (r *ResolvedEgg) EnvAsSlice() []string {
+	out := make([]string, 0, len(r.Env))
+	for k, v := range r.Env {
+		out = append(out, k+"="+v)
+	}
+	return out
 }
 
 // ResolvedConfigFile est un fichier de config dont les valeurs sont résolues.
