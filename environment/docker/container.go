@@ -353,6 +353,12 @@ func (e *Environment) Readlog(lines int) ([]string, error) {
 		Tail:       strconv.Itoa(lines),
 	})
 	if err != nil {
+		// If the container doesn't exist yet (e.g. the Panel polls for logs before
+		// the container has been created), return empty logs instead of an error.
+		// This prevents HTTP 500 errors on the logs endpoint during startup.
+		if client.IsErrNotFound(err) {
+			return []string{}, nil
+		}
 		return nil, errors.WithStack(err)
 	}
 	defer r.Close()

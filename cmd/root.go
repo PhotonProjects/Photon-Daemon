@@ -496,8 +496,8 @@ func printLogo() {
   High-performance game server orchestrator.
   Part of the [bold]Photon Panel[reset] ecosystem.
 
-  Copyright © 2018 - %d Dane Everitt & Contributors (MIT)
-  Source: https://github.com/Photon-Panel/Photon-Daemon%s`), system.Version, time.Now().Year(), "\n\n")
+  Copyright © 2026 - %d M4xyll & Jamesfrench
+  Source: https://github.com/PhotonProjects/Photon-Daemon%s`), system.Version, time.Now().Year(), "\n\n")
 }
 
 func exitWithConfigurationNotice() {

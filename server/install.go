@@ -423,7 +423,12 @@ func (ip *InstallationProcess) Execute() (string, error) {
 		AttachStdin:  true,
 		OpenStdin:    true,
 		Tty:          true,
-		Cmd:          []string{ip.Script.Entrypoint, "/mnt/install/install.sh"},
+		// Override the image's default entrypoint (e.g. /__cacert_entrypoint.sh)
+		// to ensure the installation script runs with the expected shell. Some
+		// images use a wrapper entrypoint that may fail when trying to execute
+		// the shell passed by the egg, e.g. "ash: not found" on eclipse-temurin.
+		Entrypoint:   []string{ip.Script.Entrypoint},
+		Cmd:          []string{"/mnt/install/install.sh"},
 		Image:        ip.Script.ContainerImage,
 		Env:          ip.Server.GetEnvironmentVariables(),
 		Labels: map[string]string{
@@ -520,13 +525,27 @@ func (ip *InstallationProcess) Execute() (string, error) {
 	sChan, eChan := ip.client.ContainerWait(ctx, r.ID, container.WaitConditionNotRunning)
 	select {
 	case err := <-eChan:
-		// Once the container has stopped running we can mark the install process as being completed.
+		// If the error channel fires, the wait operation itself failed (e.g. context
+		// canceled, Docker daemon error). This is different from the container exiting
+		// with a non-zero status code.
 		if err == nil {
 			ip.Server.Events().Publish(DaemonMessageEvent, "Installation process completed.")
 		} else {
 			return "", err
 		}
-	case <-sChan:
+	case status := <-sChan:
+		// Check if the container exited with a non-zero status code. If the install
+		// script fails, we need to propagate that as an error rather than silently
+		// reporting success. This prevents the server from trying to start with
+		// missing files.
+		if status.Error != nil {
+			return "", errors.New(status.Error.Message)
+		}
+		if status.StatusCode != 0 {
+			return "", errors.Errorf("install container exited with non-zero status code: %d", status.StatusCode)
+		}
+
+		ip.Server.Events().Publish(DaemonMessageEvent, "Installation process completed.")
 	}
 
 	return r.ID, nil
