@@ -82,7 +82,23 @@ func (s *Server) processConsoleOutputEvent(v []byte) {
 		return
 	}
 
-	s.Sink(system.LogSink).Push(v)
+	s.Sink(system.LogSink).Push(formatConsoleIdentity(v, s.Config().Meta.Name))
+}
+
+// formatConsoleIdentity replaces the branding printed by Pterodactyl-based
+// container entrypoints with an identity that belongs to the server being run.
+// This only changes the output forwarded to websocket clients; the container
+// itself and its logs are left untouched.
+func formatConsoleIdentity(data []byte, serverName string) []byte {
+	if serverName == "" {
+		return data
+	}
+
+	identity := []byte("Photon-Daemon@" + serverName)
+	out := bytes.ReplaceAll(data, []byte("container@pterodactyl~"), identity)
+	out = bytes.ReplaceAll(out, []byte("pterodactyl@container:"), identity)
+
+	return out
 }
 
 // StartEventListeners adds all the internal event listeners we want to use for
@@ -234,7 +250,6 @@ func (s *Server) onConsoleOutput(data []byte) {
 			}
 		}
 	}
-
 
 	// If the command sent to the server is one that should stop the server we will need to
 	// set the server to be in a stopping state, otherwise crash detection will kick in and
